@@ -1,0 +1,9 @@
+# Ignore object files
+*.o
+
+# Ignore executables (named explicitly here,
+# possibly a regex would be better?)
+/kruskal/kruskal/test_kruskal
+/kruskal/kruskal/test_mt_kruskal
+/kruskal/kruskal/test_procmap
+
