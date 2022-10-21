@@ -24,7 +24,7 @@
 #include "kruskal.h"
 #include "machine/tsc_x86_64.h"
 #include "mt_kruskal.h"
-#include "processor_map/processor_map_new.h"
+#include "processor_map/processor_map.h"
 //#define PROCMAP_H "processor_map/processor_map.h"
 //#include PROCMAP_H
 #include "util/util.h"
