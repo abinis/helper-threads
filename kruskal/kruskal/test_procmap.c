@@ -1,6 +1,8 @@
 /**
  * @file
  * Test processor_map.c
+ * Run it on any machine and check if output
+ * looks ok.
  */
 
 #include <assert.h>

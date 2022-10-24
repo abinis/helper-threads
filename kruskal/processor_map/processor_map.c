@@ -102,10 +102,13 @@ void bitmask_arr_fill_from_hexbuf (unsigned int *arr, char *hexbuf)
     while ( i < offset )
         padded_hexbuf[i++] = '0';
 
+    // Find where inside the padded buffer the hex string ends
     int end = 0;
     while (padded_hexbuf[end] != '\0')
         end++;
 
+    // Parse the hex string, from end to start, 8 hex digits
+    // at a time, converting them to ints, storing them into arr
     int j = 0;
     for (i = end-8; i >= 0; i-=8) {
         strncpy(buf, padded_hexbuf+i, 8);
