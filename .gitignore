@@ -1,9 +1,17 @@
 # Ignore object files
-*.o
+#*.o
 
 # Ignore executables (named explicitly here,
 # possibly a regex would be better?)
-/kruskal/kruskal/test_kruskal
-/kruskal/kruskal/test_mt_kruskal
-/kruskal/kruskal/test_procmap
+#/kruskal/kruskal/test_kruskal
+#/kruskal/kruskal/test_mt_kruskal
+#/kruskal/kruskal/test_procmap
 
+# Ignore everything
+*
+# Allow directories
+!/**/
+# Allow everything with an extension
+!*.*
+# Ignore object files
+*.o

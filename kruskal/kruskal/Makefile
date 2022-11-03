@@ -8,17 +8,27 @@ LIBS = -lpthread
 
 CFLAGS += -I$(INCLUDE_DIR)
 
-all : test_kruskal test_mt_kruskal
+all : test_kruskal test_mt_kruskal test_kruskal_array test_mt_kruskal_array
 
 test_kruskal : kruskal.o test_kruskal.o edgelist.o adjlist.o union_find.o util.o
 	$(CC) $(LDFLAGS)  -g kruskal.o test_kruskal.o edgelist.o \
 					  adjlist.o union_find.o util.o \
 			  		  -o test_kruskal -L$(LIBRARY_DIR) $(LIBS)
 
+test_kruskal_array : kruskal_array.o test_kruskal_array.o edgelist.o adjlist.o union_find_array.o util.o
+	$(CC) $(LDFLAGS)  -g kruskal_array.o test_kruskal_array.o edgelist.o \
+					  adjlist.o union_find_array.o util.o \
+			  		  -o test_kruskal_array -L$(LIBRARY_DIR) $(LIBS)
+
 test_mt_kruskal : kruskal.o mt_kruskal.o test_mt_kruskal.o edgelist.o adjlist.o union_find.o util.o processor_map.o
 	$(CC) $(LDFLAGS)  -g kruskal.o mt_kruskal.o test_mt_kruskal.o edgelist.o \
 					  adjlist.o union_find.o util.o processor_map.o \
 			  		  -o test_mt_kruskal -L$(LIBRARY_DIR) $(LIBS)
+
+test_mt_kruskal_array : kruskal_array.o mt_kruskal_array.o test_mt_kruskal_array.o edgelist.o adjlist.o union_find_array.o util.o processor_map.o
+	$(CC) $(LDFLAGS)  -g kruskal_array.o mt_kruskal_array.o test_mt_kruskal_array.o edgelist.o \
+					  adjlist.o union_find_array.o util.o processor_map.o \
+			  		  -o test_mt_kruskal_array -L$(LIBRARY_DIR) $(LIBS)
 
 test_procmap : processor_map.o util.o test_procmap.o 
 	$(CC) $(LDFLAGS)  -g processor_map.o util.o test_procmap.o \
@@ -43,6 +53,9 @@ processor_map.o : ../processor_map/processor_map.c
 union_find.o : ../disjoint_sets/union_find.c
 	$(CC) $(CFLAGS) -g -c ../disjoint_sets/union_find.c
 
+union_find_array.o : ../disjoint_sets/union_find_array.c
+	$(CC) $(CFLAGS) -g -c ../disjoint_sets/union_find_array.c
+
 util.o : ../util/util.c
 	$(CC) $(CFLAGS) -g -c ../util/util.c
 
@@ -51,4 +64,4 @@ util.o : ../util/util.c
 
 
 clean :
-	rm -f test_kruskal test_mt_kruskal test_procmap *.o
+	rm -f test_kruskal test_mt_kruskal test_procmap test_kruskal_array test_kruskal_mt_array *.o 

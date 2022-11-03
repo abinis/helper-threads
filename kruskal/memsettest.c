@@ -200,5 +200,8 @@ int main(int argc, char *argv[])
    
    printf("msb set: %u\n", test_msb);
 
+   //let's check gold2's core siblings bitmask
+   
+
    return 0;
 }
