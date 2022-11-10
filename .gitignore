@@ -15,3 +15,5 @@
 !*.*
 # Ignore object files
 *.o
+# Ignore .csv files
+*.csv

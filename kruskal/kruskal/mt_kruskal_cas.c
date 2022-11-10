@@ -9,7 +9,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include "mt_kruskal.h"
+#include "mt_kruskal_cas.h"
 
 #include "disjoint_sets/union_find_array.h"
 #include "graph/adjlist.h"
@@ -26,7 +26,7 @@ extern tsctimer_t tim;
 extern edgelist_t *el;
 extern union_find_node_t *array;
 extern char *edge_color_main;
-extern char *edge_color_helper;
+//extern char *edge_color_helper;
 
 /**
  * Initialize Kruskal-HT structures
@@ -35,8 +35,8 @@ extern char *edge_color_helper;
  * @param edge_color_helper pointer to per-edge color array of helper threads
  */
 void kruskal_helper_init(edgelist_t *el, 
-                         char **edge_color_main, 
-                         char **edge_color_helper)
+                         char **edge_color_main/*, 
+                         char **edge_color_helper*/)
 {
     unsigned int e;
 
@@ -46,27 +46,31 @@ void kruskal_helper_init(edgelist_t *el,
         exit(EXIT_FAILURE);
     }
 
+    /* We won't need that for this implementation!
+    
     *edge_color_helper = (char*)malloc(el->nedges * sizeof(char));
     if ( ! *edge_color_helper ) {
         fprintf(stderr, "%s: Allocation error\n", __FUNCTION__);
         exit(EXIT_FAILURE);
     }
+    
 
     for ( e = 0; e < el->nedges; e++ )
         (*edge_color_main)[e] = (*edge_color_helper)[e] = 0;
+    */
+
+    for ( e = 0; e < el->nedges; e++ )
+        (*edge_color_main)[e] = 0;
 } 
 
 /**
  * Destroy Kruskal-HT structures
  * @param edge_color_main per-edge color array of main thread
- * @param edge_color_helper per-edge color array of helper threads
  *  
  */
-void kruskal_helper_destroy(char *edge_color_main, 
-                             char *edge_color_helper)
+void kruskal_helper_destroy(char *edge_color_main)
 {
     free(edge_color_main);
-    free(edge_color_helper);
 }
 
 /**
@@ -100,6 +104,8 @@ void *kruskal_ht(void *args)
     int set1, set2;
     edge_t *pe;
 
+    cycles_skipped = 0;
+
     assert(array);
 
     // Code for the Main Thread
@@ -113,7 +119,7 @@ void *kruskal_ht(void *args)
         for ( i = begin; i < end; i++ ) {
             pe = &(el->edge_array[i]);
 
-            if( edge_color_helper[i] != 0 ) {
+            if( edge_color_main[i] != 0 ) {
                 // see how main cycles we skip thanks to the work of the helper threads :)
                 cycles_skipped++;
                 continue;
@@ -124,8 +130,10 @@ void *kruskal_ht(void *args)
                 
                 if ( set1 != set2 ) {
                     union_find_array_union(array, set1, set2);
+                    //__atomic_val_compare_and_swap(&edge_color_main[i], 0, MSF_EDGE);
                     edge_color_main[i] = MSF_EDGE;
                 } else 
+                    //__atomic_val_compare_and_swap(&edge_color_main[i], 0, CYCLE_EDGE_MAIN);
                     edge_color_main[i] = CYCLE_EDGE_MAIN;
             }
         }   
@@ -148,15 +156,25 @@ void *kruskal_ht(void *args)
                 if ( main_finished ) break;
             }
 
-            if ( edge_color_helper[i] == 0 ) {
+            // Note: was _helper originally
+            //if ( edge_color_main[i] == 0 ) {
                 pe = &(el->edge_array[i]);
                 set1 = find_set_helper(array, pe->vertex1);
                 set2 = find_set_helper(array, pe->vertex2);
                 
                 if ( set1 == set2 ) 
-                    edge_color_helper[i] = id + 1;
-            } else if ( edge_color_main[i] != 0 ) 
-                break;
+                   /*if (!*/ __sync_val_compare_and_swap(&edge_color_main[i], 0, id + 1);/*) {*/
+                     // printf("cas by thr %d for edge #%d of %d (%d%%) %d(%d,%d) failed! breaking...\n", id, begin-i, begin-end, 100*(begin-i)/(begin-end), i, begin, end);
+                     // break;
+                  // }
+
+            //} else if ( edge_color_main[i] != 0 ) 
+            //    break;
+
+            //if ( edge_color_main[i] != 0 ) {
+            //    printf("thr %d cycle caused by edge #%d of %d (%d%%) %d(%d,%d) already detected by main thread! breaking...\n", id, begin-i, begin-end, 100*(begin-i)/(begin-end), i, begin, end);
+            //    break;
+            //}
 
             i--;
         }

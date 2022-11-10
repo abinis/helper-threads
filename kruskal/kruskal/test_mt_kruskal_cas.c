@@ -23,7 +23,7 @@
 #include "graph/adjlist.h"
 #include "kruskal_array.h"
 #include "machine/tsc_x86_64.h"
-#include "mt_kruskal.h"
+#include "mt_kruskal_cas.h"
 #include "processor_map/processor_map.h"
 //#define PROCMAP_H "processor_map/processor_map.h"
 //#include PROCMAP_H
@@ -42,21 +42,21 @@ adjlist_t *al;
 union_find_node_t *array;
 unsigned int *edge_membership; 
 char *edge_color_main;
-char *edge_color_helper;
+//char *edge_color_helper;
 
 int nthreads;
 
 void touch_structures(edgelist_t *_el,
                              adjlist_t *_al,
                              union_find_node_t *_farray,
-                             char *_edge_color_main,
-                             char *_edge_color_helper)
+                             char *_edge_color_main/*,
+                             char *_edge_color_helper*/)
 {
     unsigned int e, v;
 
     for ( e = 0; e < _el->nedges; e++ ) {
         _edge_color_main[e] += 0;
-        _edge_color_helper[e] += 0;
+        //_edge_color_helper[e] += 0;
         _el->edge_array[e].weight += 0.0;
     }
 
@@ -176,7 +176,7 @@ int main(int argc, char **argv)
   
         // Perform initializations 
         kruskal_init(el, al, &array, &edge_membership);
-        kruskal_helper_init(el, &edge_color_main, &edge_color_helper);
+        kruskal_helper_init(el, &edge_color_main/*, &edge_color_helper*/);
         
         flush_caches(pi->num_cpus, llc_bytes);
 
@@ -239,7 +239,7 @@ int main(int argc, char **argv)
         free(attr);
 
         kruskal_destroy(al, array, edge_membership);
-        kruskal_helper_destroy(edge_color_main, edge_color_helper);
+        kruskal_helper_destroy(edge_color_main/*, edge_color_helper*/);
     }
     
     procmap_destroy(pi); 
