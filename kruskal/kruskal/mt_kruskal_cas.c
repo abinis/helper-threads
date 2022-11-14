@@ -163,16 +163,16 @@ void *kruskal_ht(void *args)
                 set2 = find_set_helper(array, pe->vertex2);
                 
                 if ( set1 == set2 ) 
-                   /*if (!*/ __sync_val_compare_and_swap(&edge_color_main[i], 0, id + 1);/*) {*/
-                     // printf("cas by thr %d for edge #%d of %d (%d%%) %d(%d,%d) failed! breaking...\n", id, begin-i, begin-end, 100*(begin-i)/(begin-end), i, begin, end);
-                     // break;
-                  // }
+                   /*if (!*/ __sync_bool_compare_and_swap(&edge_color_main[i], 0, id + 1);/*) {*/
+                      //printf("cas by thr %d for edge #%d of %d (%.2f%%) %d(%d,%d) failed! breaking...\n", id, begin-i, begin-end, (float)100*(begin-i)/(begin-end), i, begin, end);
+                      //break;
+                   //}
 
             //} else if ( edge_color_main[i] != 0 ) 
             //    break;
 
             //if ( edge_color_main[i] != 0 ) {
-            //    printf("thr %d cycle caused by edge #%d of %d (%d%%) %d(%d,%d) already detected by main thread! breaking...\n", id, begin-i, begin-end, 100*(begin-i)/(begin-end), i, begin, end);
+            //    printf("thr %d cycle caused by edge #%d of %d (%.2f%%) %d(%d,%d) already detected by main thread! breaking...\n", id, begin-i, begin-end, (float)100*(begin-i)/(begin-end), i, begin, end);
             //    break;
             //}
 

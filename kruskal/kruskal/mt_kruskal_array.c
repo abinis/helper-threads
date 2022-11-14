@@ -157,7 +157,7 @@ void *kruskal_ht(void *args)
                     edge_color_helper[i] = id + 1;
 
             } else if ( edge_color_main[i] != 0 ) {
-                printf("thr %d cycle caused by edge #%d of %d (%d%%) %d(%d,%d) already detected by main thread! breaking...\n", id, begin-i, begin-end, 100*(begin-i)/(begin-end), i, begin, end);
+                printf("thr %d cycle caused by edge #%d of %d (%.2f%%) %d(%d,%d) already detected by main thread! breaking...\n", id, begin-i, begin-end, (float)100*(begin-i)/(begin-end), i, begin, end);
                 break;
             }
 
