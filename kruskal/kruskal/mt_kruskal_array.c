@@ -114,7 +114,7 @@ void *kruskal_ht(void *args)
             pe = &(el->edge_array[i]);
 
             if( edge_color_helper[i] != 0 ) {
-                // see how main cycles we skip thanks to the work of the helper threads :)
+                // see how many cycles we skip thanks to the work of the helper threads :)
                 cycles_skipped++;
                 continue;
             }
