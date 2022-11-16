@@ -8,7 +8,7 @@ LIBS = -lpthread
 
 CFLAGS += -I$(INCLUDE_DIR)
 
-all : test_kruskal test_mt_kruskal test_kruskal_array test_mt_kruskal_array
+all : test_kruskal test_mt_kruskal test_kruskal_array test_mt_kruskal_array test_mt_kruskal_cas
 
 test_kruskal : kruskal.o test_kruskal.o edgelist.o adjlist.o union_find.o util.o
 	$(CC) $(LDFLAGS)  -g kruskal.o test_kruskal.o edgelist.o \

@@ -72,19 +72,23 @@ int main(int argc, char **argv)
     pthread_attr_t *attr;
     procmap_t *pi;
     unsigned long llc_level, llc_bytes;
-    int p, c, t, i, e, maxthreads, 
+    int p, c, t, i, e, iter, maxthreads, 
         is_undirected, mapping,
+        iterations = 1,
         msf_edge_count = 0;
     char graphfile[256];
 
     if ( argc < 4 ) {
         fprintf(stderr, "Usage: %s <graphfile> <maxthreads> "
-                        "<mapping= 0:cpt, 1:pct> \n", argv[0]);
+                        "<mapping= 0:cpt, 1:pct> [iterations(default=1)]\n", argv[0]);
         exit(EXIT_FAILURE);
     }
     sprintf(graphfile, "%s", argv[1]);
     maxthreads = atoi(argv[2]);
     mapping = atoi(argv[3]);
+
+    if ( argc > 4 ) 
+        iterations = atoi(argv[4]);
 
     //printf("Entering procmap_init...\n");
     // Find processor topology and configure thread affinity
@@ -158,88 +162,113 @@ int main(int argc, char **argv)
     sched_setaffinity(getpid(), sizeof(cpusets[0]), &cpusets[0]);
 
     //printf("phew! made it to the graph init!\n");
+
+    timer_clear(&tim);
+    timer_start(&tim);
     // Init adjacency list
     adjlist_init_stats(&stats);
     is_undirected = 1;
     al = adjlist_read(graphfile, &stats, is_undirected);
+    timer_stop(&tim);
     fprintf(stdout, "Read graph\n\n");
+    double hz = timer_read_hz();
+    fprintf(stdout, "adjlist_read         cycles:%lf  freq:%.0lf seconds:%lf\n", 
+                    timer_total(&tim), hz, timer_total(&tim)/hz);
 
+    timer_clear(&tim);
+    timer_start(&tim);
     // Create edge list from adjacency list
     el = edgelist_create(al);
+    timer_stop(&tim);
+    hz = timer_read_hz();
+    fprintf(stdout, "edgelist_create      cycles:%lf  freq:%.0lf seconds:%lf\n", 
+                    timer_total(&tim), hz, timer_total(&tim)/hz);
+ 
+    timer_clear(&tim);
+    timer_start(&tim);
     // Sort edge list
     kruskal_sort_edges(el); 
+    timer_stop(&tim);
+    hz = timer_read_hz();
+    fprintf(stdout, "kruskal_sort_edges   cycles:%lf  freq:%.0lf seconds:%lf\n", 
+                    timer_total(&tim), hz, timer_total(&tim)/hz);
 
-    // Run MT algorithm for different thread numbers
-    for ( nthreads = 1; nthreads <= maxthreads; nthreads++ ) {
-        fprintf(stdout, "nthreads:%d  graph:%s  mapping:%s  ", 
-                        nthreads, graphfile, mapping == 0 ? "cpt":"pct");
+    fprintf(stdout, "\n");
+
+    // Run as many iterations as specified, default is one
+    for ( iter = 0; iter < iterations; iter++ ) {
+        // Run MT algorithm for different thread numbers
+        for ( nthreads = 1; nthreads <= maxthreads; nthreads++ ) {
+            fprintf(stdout, "nthreads:%d  graph:%s  mapping:%s  ", 
+                            nthreads, graphfile, mapping == 0 ? "cpt":"pct");
   
-        // Perform initializations 
-        kruskal_init(el, al, &array, &edge_membership);
-        kruskal_helper_init(el, &edge_color_main, &edge_color_helper);
-        
-        flush_caches(pi->num_cpus, llc_bytes);
+            // Perform initializations 
+            kruskal_init(el, al, &array, &edge_membership);
+            kruskal_helper_init(el, &edge_color_main, &edge_color_helper);
+            
+            flush_caches(pi->num_cpus, llc_bytes);
 
-        // Allocate thread structures 
-        tids = (pthread_t*)malloc_safe( nthreads * sizeof(pthread_t) );
-        targs = (targs_t*)malloc_safe( nthreads * sizeof(targs_t)); 
-        attr = (pthread_attr_t*)malloc_safe( nthreads * sizeof(pthread_attr_t)); 
-        pthread_barrier_init(&bar, NULL, nthreads);
+            // Allocate thread structures 
+            tids = (pthread_t*)malloc_safe( nthreads * sizeof(pthread_t) );
+            targs = (targs_t*)malloc_safe( nthreads * sizeof(targs_t)); 
+            attr = (pthread_attr_t*)malloc_safe( nthreads * sizeof(pthread_attr_t)); 
+            pthread_barrier_init(&bar, NULL, nthreads);
 
-        timer_clear(&tim);
+            timer_clear(&tim);
 
-        // Create threads
-        assert(el->nedges > nthreads);
-        int chunk_size = el->nedges / nthreads;
-        
-        for ( i = 0; i < nthreads; i++ ) {
-            if ( i < 1 ) {
-                targs[i].type = MAIN_THR;
-                targs[i].begin = 0;
-                targs[i].end = el->nedges;
-            } else {
-                targs[i].type = HELPER_THR;
-                targs[i].end = i * chunk_size;
-                targs[i].begin = targs[i].end + chunk_size; 
+            // Create threads
+            assert(el->nedges > nthreads);
+            int chunk_size = el->nedges / nthreads;
+            
+            for ( i = 0; i < nthreads; i++ ) {
+                if ( i < 1 ) {
+                    targs[i].type = MAIN_THR;
+                    targs[i].begin = 0;
+                    targs[i].end = el->nedges;
+                } else {
+                    targs[i].type = HELPER_THR;
+                    targs[i].end = i * chunk_size;
+                    targs[i].begin = targs[i].end + chunk_size; 
+                }
+                targs[i].id = i;
+                pthread_attr_init(&attr[i]);
+                pthread_attr_setaffinity_np(&attr[i], 
+                                            sizeof(cpusets[i]), 
+                                            &cpusets[i]);
+                pthread_create(&tids[i], &attr[i], kruskal_ht, (void*)&targs[i]);
             }
-            targs[i].id = i;
-            pthread_attr_init(&attr[i]);
-            pthread_attr_setaffinity_np(&attr[i], 
-                                        sizeof(cpusets[i]), 
-                                        &cpusets[i]);
-            pthread_create(&tids[i], &attr[i], kruskal_ht, (void*)&targs[i]);
-        }
-        for ( i = 0; i < nthreads; i++ ) {
-            pthread_join(tids[i], NULL);
-            pthread_attr_destroy(&attr[i]);
-        }
-
-        double hz = timer_read_hz();
-        fprintf(stdout, "cycles:%lf  freq:%.0lf seconds:%lf  ", 
-                        timer_total(&tim), hz, timer_total(&tim)/hz);
-        
-        // Print algorithm results
-        weight_t msf_weight = 0.0;
-        msf_edge_count = 0;
-
-        for ( e = 0; e < el->nedges; e++ ){
-            if ( edge_color_main[e] == MSF_EDGE ) {
-                msf_weight += el->edge_array[e].weight;
-                msf_edge_count++;
+            for ( i = 0; i < nthreads; i++ ) {
+                pthread_join(tids[i], NULL);
+                pthread_attr_destroy(&attr[i]);
             }
+
+            double hz = timer_read_hz();
+            fprintf(stdout, "cycles:%lf  freq:%.0lf seconds:%lf  ", 
+                            timer_total(&tim), hz, timer_total(&tim)/hz);
+            
+            // Print algorithm results
+            weight_t msf_weight = 0.0;
+            msf_edge_count = 0;
+
+            for ( e = 0; e < el->nedges; e++ ){
+                if ( edge_color_main[e] == MSF_EDGE ) {
+                    msf_weight += el->edge_array[e].weight;
+                    msf_edge_count++;
+                }
+            }
+            fprintf(stdout, " msf_weight:%.0f", msf_weight);
+            fprintf(stdout, " msf_edges:%d", msf_edge_count);
+            fprintf(stdout, " cycles_skipped:%d\n", cycles_skipped);
+
+            // clean-up things
+            pthread_barrier_destroy(&bar);
+            free(tids);
+            free(targs);
+            free(attr);
+
+            kruskal_destroy(al, array, edge_membership);
+            kruskal_helper_destroy(edge_color_main, edge_color_helper);
         }
-        fprintf(stdout, " msf_weight:%.0f", msf_weight);
-        fprintf(stdout, " msf_edges:%d", msf_edge_count);
-        fprintf(stdout, " cycles_skipped:%d\n", cycles_skipped);
-
-        // clean-up things
-        pthread_barrier_destroy(&bar);
-        free(tids);
-        free(targs);
-        free(attr);
-
-        kruskal_destroy(al, array, edge_membership);
-        kruskal_helper_destroy(edge_color_main, edge_color_helper);
     }
     
     procmap_destroy(pi); 

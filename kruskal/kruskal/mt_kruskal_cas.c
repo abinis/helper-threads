@@ -106,6 +106,8 @@ void *kruskal_ht(void *args)
 
     cycles_skipped = 0;
 
+    int ht_spins = 0;
+
     assert(array);
 
     // Code for the Main Thread
@@ -153,7 +155,12 @@ void *kruskal_ht(void *args)
             // upon reaching end, recycle, or exit if main has finished
             if ( i == end + 1 ) {
                 i = begin - 1;
-                if ( main_finished ) break;
+                // count how many times we spinned 
+                ht_spins++;
+                if ( main_finished ) {
+                    printf("thr %d reached main_finished after %d spins, breaking...\n", id, ht_spins);
+                    break;
+                }
             }
 
             // Note: was _helper originally
