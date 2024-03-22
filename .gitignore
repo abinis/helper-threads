@@ -12,7 +12,7 @@
 # Allow directories
 !/**/
 # Allow everything with an extension
-!*.*
+!*.[a-z]*
 # Ignore object files
 *.o
 # Ignore .csv files
