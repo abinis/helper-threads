@@ -167,7 +167,7 @@ procmap_t* procmap_init()
     char base_path[] = "/sys/devices/system/";
     char path[128], 
          curr_cpu[8],
-         curr_index[8],
+         curr_index[12],
          curr_node[8],
          cpu_path[128],
          buf[1024];
@@ -263,6 +263,7 @@ procmap_t* procmap_init()
             buf[br] = 0;
             trim(buf, '\n');
             flat_threads[i].sym_core_id = strtol(buf, NULL, 10);
+            close(fd);
         }
 
         // Get package id
@@ -277,6 +278,7 @@ procmap_t* procmap_init()
             buf[br] = 0;
             trim(buf, '\n');
             flat_threads[i].sym_pack_id = strtol(buf, NULL, 10);
+            close(fd);
         }
 
         // Get core siblings map
@@ -309,6 +311,7 @@ procmap_t* procmap_init()
             //flat_threads[i].core_siblings = (long long int)strtoll(buf, NULL, 16);
             //snprintf(flat_threads[i].core_siblings, 32, "%s", buf);
             //printf("core siblings for cpu%d: %s\n", i, flat_threads[i].core_siblings);
+            close(fd);
         }
 
         // Get thread siblings map
@@ -332,6 +335,7 @@ procmap_t* procmap_init()
             //flat_threads[i].thread_siblings = (long long int)strtoll(buf, NULL, 16);
             //snprintf(flat_threads[i].thread_siblings, 32, "%s", buf);
             //printf("thread siblings for cpu%d: %s\n", i, flat_threads[i].thread_siblings);
+            close(fd);
         }
 
         // Get cache info
@@ -361,6 +365,7 @@ procmap_t* procmap_init()
                 buf[br] = 0;
                 trim(buf, '\n');
                 cache[j].coherency_line_size = strtol(buf, NULL, 10);
+                close(fd);
             }
         
             path[0]='\0';
@@ -376,6 +381,7 @@ procmap_t* procmap_init()
                buf[br] = 0;
                trim(buf, '\n');
                cache[j].level = strtol(buf, NULL, 10);
+               close(fd);
             }
 
             path[0]='\0';
@@ -391,6 +397,7 @@ procmap_t* procmap_init()
                 buf[br] = 0;
                 trim(buf, '\n');
                 cache[j].number_of_sets = strtol(buf, NULL, 10);
+                close(fd);
             }
 
             path[0]='\0';
@@ -406,6 +413,7 @@ procmap_t* procmap_init()
                 buf[br] = 0;
                 trim(buf, '\n');
                 cache[j].physical_line_partition = strtol(buf, NULL, 10);
+                close(fd);
             }
 
             path[0]='\0';
@@ -425,6 +433,7 @@ procmap_t* procmap_init()
                 trim(buf, ',');
                 //cache[j].shared_cpu_map = strtol(buf, NULL, 16);
                 bitmask_arr_fill_from_hexbuf(cache[j].shared_cpu_map, buf);
+                close(fd);
             }
 
             path[0] = '\0';
@@ -441,6 +450,7 @@ procmap_t* procmap_init()
                 trim(buf, '\n');
                 trim(buf, 'K');
                 cache[j].size = strtol(buf, NULL, 10)*1024;
+                close(fd);
             }
 
             path[0] = '\0';
@@ -456,6 +466,7 @@ procmap_t* procmap_init()
                 buf[br] = 0;
                 trim(buf, '\n');
                 strcpy(cache[j].type, buf); 
+                close(fd);
             }
 
             path[0]='\0';
@@ -471,6 +482,7 @@ procmap_t* procmap_init()
                 buf[br] = 0;
                 trim(buf, '\n');
                 cache[j].ways_of_associativity = strtol(buf, NULL, 10);
+                close(fd);
             }
        
         } // for each cache
@@ -708,6 +720,7 @@ procmap_t* procmap_init()
             trim(buf, '\n');
             bitmask_arr_fill_from_hexbuf(memnode[i].cpumap, buf);
             //memnode[i].cpumap = strtol(buf, NULL, 16);
+            close(fd);
         }
 
         path[0] = '\0';
@@ -724,6 +737,7 @@ procmap_t* procmap_init()
             char *ptr = strstr(buf, "MemTotal:");
             while ( *ptr++ != ':' );
             memnode[i].size = strtol(ptr, NULL, 10) * 1024;
+            close(fd);
         }
     } // for all memnodes
 
@@ -911,7 +925,7 @@ void procmap_report(procmap_t *pi)
                 caches[i].size);
         fprintf(stdout, "  coherency line size: %d bytes\n", 
                         caches[i].coherency_line_size);
-        fprintf(stdout, "  number of set: %d\n", 
+        fprintf(stdout, "  number of sets: %d\n", 
                         caches[i].number_of_sets);
         fprintf(stdout, "  ways of associativity: %d\n", 
                         caches[i].ways_of_associativity);

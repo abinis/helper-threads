@@ -25,7 +25,7 @@ static inline double timer_read_hz() {
      int fd;
      double hz;
 
-     buf = malloc(4096);
+     buf = (char*)malloc(4096);
      if (!buf) exit(1);
 
      fd = open("/proc/cpuinfo", O_RDONLY);

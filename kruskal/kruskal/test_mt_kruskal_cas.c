@@ -31,7 +31,9 @@
 
 //declared in mt_kruskal_cas.c
 //how many cycles the main thread skipped thanks to helper thread work
-int cycles_skipped;
+unsigned int cycles_skipped;
+//how many cycles the man thread found
+unsigned int cycles_main;
 
 pthread_barrier_t bar;
 tsctimer_t tim;
@@ -231,16 +233,32 @@ int main(int argc, char **argv)
                     targs[i].begin = targs[i].end + chunk_size; 
                 }
                 targs[i].id = i;
+                // extra args for keeping stats
+                targs[i].ht_loop_count = 0;
+                memset(targs[i].ht_cycles_per_loop, 0, TARGS_LOOP_ARR_SZ);
+                // TODO probably redundant
+                targs[i].p = targs[i].ht_cycles_per_loop;
+                targs[i].why = 0;
+
                 pthread_attr_init(&attr[i]);
                 pthread_attr_setaffinity_np(&attr[i], 
                                             sizeof(cpusets[i]), 
                                             &cpusets[i]);
                 pthread_create(&tids[i], &attr[i], kruskal_ht, (void*)&targs[i]);
             }
+
+            // total cycles found by all helper threads
+            unsigned int ht_total_cycles = 0;
             for ( i = 0; i < nthreads; i++ ) {
+                kruskal_helper_print_stats((void*)&targs[i]);
+                ht_total_cycles += kruskal_helper_get_total_cycles((void*)&targs[i]);
                 pthread_join(tids[i], NULL);
                 pthread_attr_destroy(&attr[i]);
             }
+
+            // number of cycles reported as skipped by the main thread should be at most
+            // equal to the total number of cycles detected by all the helper threads
+            assert( ht_total_cycles >= cycles_skipped );
 
             double hz = timer_read_hz();
             fprintf(stdout, "cycles:%lf  freq:%.0lf seconds:%lf  ", 
@@ -250,15 +268,34 @@ int main(int argc, char **argv)
             weight_t msf_weight = 0.0;
             msf_edge_count = 0;
 
+            unsigned int cycles_helper = 0;
+            unsigned int cycles_main_by_color = 0;
             for ( e = 0; e < el->nedges; e++ ){
                 if ( edge_color_main[e] == MSF_EDGE ) {
                     msf_weight += el->edge_array[e].weight;
                     msf_edge_count++;
+                } else {
+                    if ( edge_color_main[e] == CYCLE_EDGE_MAIN ) {
+                        cycles_main_by_color++;
+                    } else {
+                        if ( edge_color_main[e] > 0 ) {
+                            cycles_helper++;
+                        }
+                    }
                 }
             }
+            //assert( cycles_main == cycles_main_by_color );
+            //assert( cycles_helper == ht_total_cycles );
+            fprintf(stdout, " cycles_main_by_color=%u", cycles_main_by_color);
+            fprintf(stdout, "cycles_helper=%u", cycles_helper);
+
             fprintf(stdout, " msf_weight:%.0f", msf_weight);
             fprintf(stdout, " msf_edges:%d", msf_edge_count);
-            fprintf(stdout, " cycles_skipped:%d\n", cycles_skipped);
+            fprintf(stdout, " cycles_main:%u", cycles_main);
+            fprintf(stdout, " cycles_helper:%u", ht_total_cycles);
+            fprintf(stdout, " cycles_skipped:%u\n", cycles_skipped);
+
+            assert( msf_edge_count+cycles_main+cycles_skipped == el->nedges );
 
             // clean-up things
             pthread_barrier_destroy(&bar);

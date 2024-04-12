@@ -18,8 +18,11 @@
 #include "machine/tsc_x86_64.h"
 
 int main_finished;
+//unsigned int cur_edge;
+//extern unsigned int *cycles_so_far;
 
-extern int cycles_skipped;
+extern unsigned int cycles_skipped;
+extern unsigned int cycles_main;
 
 extern pthread_barrier_t bar;
 extern tsctimer_t tim;
@@ -27,6 +30,67 @@ extern edgelist_t *el;
 extern union_find_node_t *array;
 extern char *edge_color_main;
 extern char *edge_color_helper;
+
+/**
+ * Get total number of cycles found by a helper thread
+ */
+unsigned int kruskal_helper_get_total_cycles(void *targs)
+{
+    targs_t *args = (targs_t*)targs;
+    char *log = args->ht_cycles_per_loop;
+
+    char *ptr = log;
+    int pos = 0;
+    int loop;
+    unsigned int cycles, total = 0;
+    int ret;
+
+    while ( ptr < log+TARGS_LOOP_ARR_SZ ) {
+        ret = sscanf(ptr, "%d:%u %n", &loop, &cycles, &pos);
+        if ( ret == 2 )
+            total += cycles;
+        else
+            break;
+
+        ptr += pos;
+    }
+
+    return total;
+}
+
+/**
+ * Print helper thread related stats
+ */
+void kruskal_helper_print_stats(void *targs)
+{
+    targs_t *args = (targs_t*)targs;
+    fprintf(stdout, "htid:%d ", args->id);
+    fprintf(stdout, "t:%u ", kruskal_helper_get_total_cycles(targs));
+    fprintf(stdout, "%s", args->ht_cycles_per_loop);
+    //TODO: multiple break reasons?
+    fprintf(stdout, "%s\n", ( args->why == MAIN_FIN ) ? "main_fin" : "cycle_found");
+}
+
+/**
+ * Log cycles found by helper thread
+ * @param id the helper thread id
+ * @param log the buffer to write into
+ * @param pos in which position
+ * @param l the loop #
+ * @param c how many cycles the ht found within l
+ */
+void kruskal_helper_log_cycles(int id, char *log, char **pos, int l, unsigned int c)
+{
+    char buffer[32];
+    //memset(buffer, 0, 32);
+    int about_to_write = sprintf(buffer, "%d:%u ", l, c);
+    if ( (*pos)+about_to_write < log+TARGS_LOOP_ARR_SZ-1 )
+        (*pos) += sprintf(*pos, "%d:%u ", l, c);
+    else 
+        fprintf(stderr, "thr %d ran out of cycles per loop reporting space! moving on...\n", id);
+    
+    //ptr += chars_written;
+}
 
 /**
  * Initialize Kruskal-HT structures
@@ -95,14 +159,28 @@ void *kruskal_ht(void *args)
     int begin = thread_args->begin;
     int end = thread_args->end;
     int thread_type = thread_args->type;
+    int *ht_loop_count = &(thread_args->ht_loop_count);
+    char *log = thread_args->ht_cycles_per_loop;
+    char *pos = thread_args->p;
+    enum ht_break_reason *why = &(thread_args->why);
+    // default to cycle found by main, for consistency reasons with
+    // the CAS implementation :)
+    *why = CYCLE_FOUND_BY_MAIN;
+    // how many cycles found by ht in its current looping through its edges
+    unsigned int ht_cycles_found = 0;
+    //int chars_written = 0;
+    
     unsigned int i;
     // changing type to int since we're using array impl of union-find
     int set1, set2;
     edge_t *pe;
 
     cycles_skipped = 0;
+    cycles_main = 0;
 
-    int ht_spins = 0;
+    char buffer[32];
+    memset(buffer, 0, 32);
+    //int ht_spins = 0;
 
     assert(array);
 
@@ -129,8 +207,10 @@ void *kruskal_ht(void *args)
                 if ( set1 != set2 ) {
                     union_find_array_union(array, set1, set2);
                     edge_color_main[i] = MSF_EDGE;
-                } else 
+                } else {
+                    cycles_main++;
                     edge_color_main[i] = CYCLE_EDGE_MAIN;
+                }
             }
         }   
         main_finished = 1;
@@ -150,9 +230,21 @@ void *kruskal_ht(void *args)
             if ( i == end + 1 ) {
                 i = begin - 1;
                 // count how many times we spinned 
-                ht_spins++;
+                (*ht_loop_count)++;
+                // TODO: ptr out of bounds check
+                // TODO: ACTUALLY FIX THIS!
+                kruskal_helper_log_cycles(id, log, &pos, *ht_loop_count, ht_cycles_found);
+                //int about_to_write = sprintf(buffer, "%d:%u ",(*ht_loop_count)+1, ht_cycles_found);
+                //if ( ptr+chars_written+about_to_write < ptr+TARGS_LOOP_ARR_SZ-1 )
+                //    chars_written += sprintf(ptr+chars_written, "%d:%u ", (*ht_loop_count), ht_cycles_found);
+                //else 
+                //    fprintf(stderr, "thr %d ran out of cycles per loop reporting space! moving on...\n", id);
+                
+                //ptr += chars_written;
+                ht_cycles_found = 0;
                 if ( main_finished ) {
-                    printf("thr %d reached main_finished after %d spins, breaking...\n", id, ht_spins);
+                    printf("thr %d reached main_finished after %d spins, breaking...\n", id, (*ht_loop_count));
+                    *why = MAIN_FIN;
                     break;
                 }
             }
@@ -162,11 +254,22 @@ void *kruskal_ht(void *args)
                 set1 = find_set_helper(array, pe->vertex1);
                 set2 = find_set_helper(array, pe->vertex2);
                 
-                if ( set1 == set2 ) 
+                if ( set1 == set2 ) {
                     edge_color_helper[i] = id + 1;
+                    ht_cycles_found++;
+                    //cycles_so_far[id]++;
+                }
 
             } else if ( edge_color_main[i] != 0 ) {
-                printf("thr %d cycle caused by edge #%d of %d (%.2f%%) %d(%d,%d) already detected by main thread! breaking...\n", id, begin-i, begin-end, (float)100*(begin-i)/(begin-end), i, begin, end);
+                printf("thr %d cycle caused by edge #%d of %d (%d:%.2f%%) %d(%d,%d) already detected by main thread! breaking...\n", id, begin-i, begin-end, *(ht_loop_count)+1, (float)100*(begin-i)/(begin-end), i, begin, end);
+                *why = CYCLE_FOUND_BY_MAIN;
+                // report how many cycles found in this final, uncompleted loop
+                kruskal_helper_log_cycles(id, log, &pos, (*ht_loop_count)+1, ht_cycles_found);
+                //int about_to_write = sprintf(buffer, "%d:%u ",(*ht_loop_count)+1, ht_cycles_found);
+                //if ( ptr+chars_written+about_to_write < ptr+TARGS_LOOP_ARR_SZ-1 )
+                //    chars_written += sprintf(ptr+chars_written, "%d:%u ", (*ht_loop_count)+1, ht_cycles_found);
+                //else 
+                //    fprintf(stderr, "thr %d ran out of cycles per loop reporting space! moving on...\n", id);
                 break;
             }
 

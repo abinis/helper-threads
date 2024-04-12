@@ -86,7 +86,7 @@ void* malloc_safe(size_t size)
  * @param ptr pointer to buffer where chars are stored (one at a time)
  * @return 1 if a char was read fine, 0 if EOF encountered, -1 if error
  */
-static ssize_t buffered_read(int fd, unsigned char *ptr)
+static inline ssize_t buffered_read(int fd, unsigned char *ptr)
 {
 	static int read_cnt = 0;
 	static unsigned char *read_ptr;
@@ -131,6 +131,7 @@ ssize_t readline(int fd, char *vptr, size_t maxlen)
         if ( (rc = buffered_read(fd, &c) ) == 1 ) {
             *ptr++ = c;
             // if at end of line, stop reading
+            //printf("read #%ld: %c\n", n, c);
             if (c == '\n')
                 break;
         } else if ( rc == 0 ) {
@@ -144,9 +145,31 @@ ssize_t readline(int fd, char *vptr, size_t maxlen)
             return -1; // error      
 	}
 
-	if ( *(ptr-1) == '\n' )             
-        *(ptr-1) = '\0';
-	
+        // commented-out the condition below,
+        // always null-terminate the target buffer!
+        // *actually: 1. don't strip the trailing newline
+        //            2. append a '\0' at the end
+	//if ( *(ptr-1) == '\n' )             
+        //*(ptr-1) = '\0';
+            *(ptr) = '\0';
+
+        // if no end of line was reached, i.e. the
+        // line is longer than GRAPH_MAX_LINE_LENGTH,
+        // continue reading and discarding the remainder
+        // of the line
+        // note: alternatively, the caller could be
+        // responsible for sscanf-ing the returned buffer
+        // to see if they found what they wanted in it,
+        // and if not, call readline repeatedly :P
+        //if ( n == maxlen && *(ptr-1) != '\n' ) {
+        //    do {
+        //        rc = buffered_read(fd, &c);
+        //        printf("read: %c\n", c);
+        //        if ( rc < 0 )
+        //            return -1; // error
+        //    } while ( rc == 1 && c != '\n' );
+        //}
+
 	return n;
 }
 
@@ -161,7 +184,7 @@ inline unsigned int galois_lfsr()
         
     // taps: 32 31 29 1 
     // characteristic polynomial: x^32 + x^31 + x^29 + x + 1 
-    lfsr = (lfsr >> 1) ^ (unsigned int)(0 - (lfsr & 1u) & 0xd0000001u); 
+    lfsr = (lfsr >> 1) ^ (unsigned int)((0 - (lfsr & 1u)) & 0xd0000001u); 
 
     return lfsr;
 }
@@ -208,7 +231,12 @@ void swap(void *x, void *y, size_t elem_size)
     memcpy(_x, _y, elem_size);
     memcpy(_y, tmp, elem_size);
 
+    printf("swap: sizeof edge_t = %lu\n", elem_size);
+    
+
     free(tmp);
+
+    printf("swap: after free\n");
 }
 
 

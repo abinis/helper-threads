@@ -49,7 +49,7 @@ adjlist_t* adjlist_init(unsigned int nvertices)
  * @param t edge target vertex id
  * @param w edge weight
  * @param stats pointer to statistics info
- * @return 0 in case of success, 1 if edge already exists
+ * @return 0 in case of success (1 if edge already exists <- not any more!)
  */ 
 int adjlist_insert_edge(adjlist_t *al, 
                         unsigned int s, 
@@ -61,7 +61,13 @@ int adjlist_insert_edge(adjlist_t *al,
     for ( x = al->adj[s]; x != NULL; x = x->next ) {
         if ( x->id == t ) {
             stats->nparallel_edges++;
-            return 1;
+            // if edge already exists, just replace it with the
+            // new one in case it is of smaller weight and return :)
+            if ( x->weight > w ) {
+                x->weight = w;
+                return 0;
+            }
+            //return 1;
         }
     }
 
@@ -84,7 +90,7 @@ int adjlist_insert_edge(adjlist_t *al,
 }
 
 
-#define GRAPH_MAX_LINE_LENGTH 64
+#define GRAPH_MAX_LINE_LENGTH 256
 
 /**
  * Allocates and initializes an adjacency list from a graph file.
@@ -157,6 +163,65 @@ adjlist_t* adjlist_read(const char *filename,
 
     return al;
 }
+
+/*
+adjlist_t* adjlist_align(adjlist_t *al, 
+                         adjlist_stats_t *stats, 
+                         int is_undirected)
+{
+    unsigned int nvertices, nedges, s, t;
+    weight_t weight;
+    int fd;
+    char *curr_line, dum1[2], dum2[2], a;
+
+    curr_line = (char*)malloc(GRAPH_MAX_LINE_LENGTH * sizeof(char));
+    if ( !curr_line ) {
+        fprintf(stderr, "%s: Allocation error\n", __FUNCTION__);
+        exit(EXIT_FAILURE);
+    }
+
+    if ( (fd = open(filename, O_RDONLY)) < 0 ) {
+        perror("Error while opening file from disk: ");
+        exit(EXIT_FAILURE);
+    }
+    
+    // Ignore comments until "p sp ... " line
+    do {
+        readline(fd, curr_line, GRAPH_MAX_LINE_LENGTH);
+    } while ( curr_line[0] != 'p' );
+
+    sscanf(curr_line, "%s %s %u %u\n", dum1, dum2, &nvertices, &nedges);
+    adjlist_t *al = adjlist_init(nvertices);
+    al->is_undirected = is_undirected;
+    stats->nvertices = nvertices;
+    
+    while ( readline(fd, curr_line, GRAPH_MAX_LINE_LENGTH) > 0 ) {
+        sscanf(curr_line, "%c %u %u %f\n", &a, &s, &t, &weight);
+        
+        // Self-edge test
+        if ( s == t ) {
+            fprintf(stderr, "Self-edge found (and ingored)! \n");
+            stats->nloops++;
+            continue;
+        }
+
+        // Add edge
+        if ( !is_undirected ) 
+            adjlist_insert_edge(al, s-1, t-1, weight, stats);
+
+        // If graph is undirected, each edge is treated as bidirectional 
+        // and therefore a second reverse edge is inserted 
+        else {
+            adjlist_insert_edge(al, s-1, t-1, weight, stats);
+            adjlist_insert_edge(al, t-1, s-1, weight, stats);
+        }
+    }
+
+    free(curr_line);
+
+    return al;
+}
+*/
 
 /**
  * Prints the adjacency lists

@@ -29,9 +29,12 @@
 //#include PROCMAP_H
 #include "util/util.h"
 
-//declared in mt_kruskal_cas.c
+//declared in mt_kruskal_array.c
 //how many cycles the main thread skipped thanks to helper thread work
-int cycles_skipped;
+unsigned int cycles_skipped;
+//how many cycles the man thread found
+unsigned int cycles_main;
+unsigned int *cycles_so_far;
 
 pthread_barrier_t bar;
 tsctimer_t tim;
@@ -208,6 +211,8 @@ int main(int argc, char **argv)
             
             flush_caches(pi->num_cpus, llc_bytes);
 
+            cycles_so_far = calloc( nthreads, sizeof(unsigned int));
+
             // Allocate thread structures 
             tids = (pthread_t*)malloc_safe( nthreads * sizeof(pthread_t) );
             targs = (targs_t*)malloc_safe( nthreads * sizeof(targs_t)); 
@@ -231,16 +236,39 @@ int main(int argc, char **argv)
                     targs[i].begin = targs[i].end + chunk_size; 
                 }
                 targs[i].id = i;
+                // extra args for keeping stats
+                targs[i].ht_loop_count = 0;
+                memset(targs[i].ht_cycles_per_loop, 0, TARGS_LOOP_ARR_SZ);
+                // TODO probably redundant
+                targs[i].p = targs[i].ht_cycles_per_loop;
+                targs[i].why = 0;
+
                 pthread_attr_init(&attr[i]);
                 pthread_attr_setaffinity_np(&attr[i], 
                                             sizeof(cpusets[i]), 
                                             &cpusets[i]);
                 pthread_create(&tids[i], &attr[i], kruskal_ht, (void*)&targs[i]);
             }
+
+            // total cycles found by all helper threads
+            unsigned int ht_total_cycles = 0;
             for ( i = 0; i < nthreads; i++ ) {
+                // TODO: should be out of the critical (timed) region ->
+                // move stats to independent structure, outside of targs
+                // Also TODO, this always prints 0 main_fin for tid 0 (main) :P
+                // will be fixed with the single struct where everybody reports
+                kruskal_helper_print_stats((void*)&targs[i]);
+                ht_total_cycles += kruskal_helper_get_total_cycles((void*)&targs[i]);
                 pthread_join(tids[i], NULL);
                 pthread_attr_destroy(&attr[i]);
             }
+
+            // number of cycles reported as skipped by the main thread should be at most
+            // equal to the total number of cycles detected by all the helper threads
+            // TODO: this seems to fail consistently for nthreads=3 -- not anymore!
+            assert( ht_total_cycles >= cycles_skipped );
+
+            //printf("%s\n", ( ht_total_cycles >= cycles_skipped ) ? "ALL GOOD" : "HMM..." );
 
             double hz = timer_read_hz();
             fprintf(stdout, "cycles:%lf  freq:%.0lf seconds:%lf  ", 
@@ -258,7 +286,13 @@ int main(int argc, char **argv)
             }
             fprintf(stdout, " msf_weight:%.0f", msf_weight);
             fprintf(stdout, " msf_edges:%d", msf_edge_count);
-            fprintf(stdout, " cycles_skipped:%d\n", cycles_skipped);
+            fprintf(stdout, " cycles_main:%u", cycles_main);
+            fprintf(stdout, " cycles_helper:%u", ht_total_cycles);
+            fprintf(stdout, " cycles_skipped:%u\n", cycles_skipped);
+
+            assert( msf_edge_count+cycles_main+cycles_skipped == el->nedges );
+
+            free(cycles_so_far);
 
             // clean-up things
             pthread_barrier_destroy(&bar);

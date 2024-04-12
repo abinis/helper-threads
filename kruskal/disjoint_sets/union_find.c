@@ -13,7 +13,7 @@
  * @param value pointer to node contents
  * @return pointer to the forest node created
  */
-forest_node_t* make_set(void* value) 
+forest_node_t* make_set(int/*void**/ value) 
 {
     forest_node_t* node = malloc(sizeof(forest_node_t));
     if ( !node ) {

@@ -11,7 +11,7 @@
 #include "disjoint_sets/union_find.h"
 
 void kruskal_init(edgelist_t *el,
-                  adjlist_t *al,
+                  /*adjlist_t *al,*/
                   forest_node_t ***fnode_array,
                   unsigned int **edge_membership);
 
@@ -21,7 +21,8 @@ void kruskal(edgelist_t *el,
              forest_node_t **node_array,  
              unsigned int *edge_membership);
 
-void kruskal_destroy(adjlist_t *al,
+void kruskal_destroy(/*adjlist_t *al,*/
+                     edgelist_t *el,
                      forest_node_t **fnode_array, 
                      unsigned int *edge_membership);
 #endif

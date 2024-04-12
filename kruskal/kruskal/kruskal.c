@@ -19,13 +19,13 @@
  *                        an edge is part of the MSF
  */
 void kruskal_init(edgelist_t *el,
-                  adjlist_t *al,
+                  /*adjlist_t *al,*/
                   forest_node_t ***fnode_array,
                   unsigned int **edge_membership)
 {
     unsigned int v, e;
 
-    assert(al);
+    //assert(al);
     assert(el);
     assert(el->edge_array);
 
@@ -38,8 +38,8 @@ void kruskal_init(edgelist_t *el,
     }
 
     // Make a set from each vertex of the graph
-    for ( v = 0; v < al->nvertices; v++ ) 
-        (*fnode_array)[v] = make_set(al->adj[v]);
+    for ( v = 0; v < /*al*/el->nvertices; v++ ) 
+        (*fnode_array)[v] = make_set(v/*al->adj[v]*/);
 
     // Create and initialize output array
     *edge_membership = (unsigned int*)malloc(el->nedges * 
@@ -58,7 +58,7 @@ void kruskal_init(edgelist_t *el,
  */
 void kruskal_sort_edges(edgelist_t *el)
 {
-    unsigned int v, e;
+    //unsigned int v, e;
 
     assert(el);
     assert(el->edge_array);
@@ -105,15 +105,16 @@ void kruskal(edgelist_t *el,
  * @param fnode_array forest nodes array
  * @param edge_membership designates whether an edge is part of the MSF
  */
-void kruskal_destroy(adjlist_t *al,
+void kruskal_destroy(/*adjlist_t *al,*/
+                     edgelist_t *el,
                      forest_node_t **fnode_array, 
                      unsigned int *edge_membership)
 {
     unsigned int v;
 
-    assert(al);
+    //assert(al);
     
-    for ( v = 0; v < al->nvertices; v++ )
+    for ( v = 0; v < el->nvertices; v++ )
        destroy_set(fnode_array[v]);
     free(fnode_array);
     free(edge_membership);

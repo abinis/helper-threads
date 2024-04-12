@@ -27,6 +27,24 @@ typedef struct adjlist_st {
     int is_undirected; //!< undirected flag
 } adjlist_t;
 
+/* TODO
+
+enum vertex_color { 'A', 'Y', 'E' };
+
+typedef struct vertex_st {
+    unsigned int id;
+    enum vertex_color color;
+    
+
+typedef struct adjlist_aligned_st {
+    unsigned int nvertices; //!< number of vertices
+    unsigned int nedges; //!< number of edges
+    vertex_t *adj; //!< array of adjacency lists
+    int is_undirected; //!< undirected flag
+} adjlist_aligned_t;
+
+*/
+
 /**
  * Keeps graph statistics
  */ 

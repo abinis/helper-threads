@@ -10,12 +10,12 @@
  * Represents a node in the set forest
  */ 
 typedef struct forest_node_st {
-    void* value; //!< node contents
+    int/*void**/ value; //!< node contents
     int rank; //!< upper bound on the height of the node
     struct forest_node_st *parent; //!< the parent of the node
 } forest_node_t;
 
-extern forest_node_t* make_set(void* value);
+extern forest_node_t* make_set(int/*void**/ value);
 extern void destroy_set(forest_node_t *node);
 extern void union_sets(forest_node_t *node1, forest_node_t *node2);
 extern forest_node_t* find_set(forest_node_t *node);

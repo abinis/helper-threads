@@ -17,3 +17,7 @@
 *.o
 # Ignore .csv files
 *.csv
+# Ignore .png files
+*.png
+# Ignore .gr* (graph files)
+*.gr*

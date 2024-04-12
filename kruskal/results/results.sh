@@ -14,4 +14,4 @@ then
 fi
 
 #sed -n -e 's/.*nthreads:\([0-9]*\).*cycles:\([0-9]*\).*seconds:\([0-9]*\.[0-9]*\).*cycles_skipped:\([0-9]*\).*/\1,\2,\3,\4/p' $1 > $1.csv
-sed -n '/^nthreads/h; /cycles_skipped:[0-9]*$/{s/^nthreads/&/; ty; H; :y g; s/.*nthreads:\([0-9]*\).*cycles:\([0-9]*\).*seconds:\([0-9]*\.[0-9]*\).*cycles_skipped:\([0-9]*\).*/\1 \2 \3 \4/p}' $1 > $1.csv
+sed -n '/^nthreads/h; /cycles_skipped:[0-9]*$/{s/^nthreads/&/; ty; H; :y g; s/.*nthreads:\([0-9]*\).*seconds:\([0-9]*\.[0-9]*\).*batch#\([0-9]*\).*cycles_main:\([0-9]*\).*cycles_helper:\([0-9]*\).*cycles_skipped:\([0-9]*\).*/\1 \2 \3 \4 \5 \6/p}' $1 > $1.csv
