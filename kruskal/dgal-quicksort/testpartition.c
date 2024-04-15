@@ -11,8 +11,12 @@
 #include "partition/partition.h"
 #include "cpp_functions/cpp_psort.h"
 
+#ifdef PROFILE
 #include "machine/tsc_x86_64.h"
+// hmm that's kind of dodgy... i.e. assuming that you can warm up your
+// cores and then frequency scaling becomes a non-issue
 #include "time_it.h"
+#endif
 
 /*
 void print_array( int *arr, int len )
@@ -132,25 +136,30 @@ int main (int argc, char *argv[])
     //    key_range = atol(argv[2]);
 
     if ( argc < 2 ) {
-        printf("usage: %s <graphfile>\n", argv[0]);
+        printf("usage: %s <graphfile> [pivot_index(default:random)]\n", argv[0]);
         exit(1);
     }
 
     char graphfile[256];
     snprintf(graphfile, 256, "%s", argv[1]);
 
+#ifdef PROFILE
     tsctimer_t tim;
     double hz;
+#endif
 
     int is_undirected = 0;
     char *inp_method;
 
+#ifdef PROFILE
     timer_clear(&tim);
     timer_start(&tim);
+#endif
 
     //edgelist_t *el = edgelist_read(graphfile, 0, 0);
     edgelist_t *el = edgelist_choose_input_method(argv[1],is_undirected,0,&inp_method);
 
+#ifdef PROFILE
     timer_stop(&tim);
     hz = timer_read_hz();
     fprintf(stdout, "edgelist_%s          cycles:%18.2lf seconds:%10lf freq:%lf\n", 
@@ -158,6 +167,9 @@ int main (int argc, char *argv[])
                     timer_total(&tim),
                     timer_total(&tim) / hz,
                     hz );
+#endif
+
+    free(inp_method);
 
     long int nelem = el->nedges;
     _TYPE_V *array_d = el->edge_array;
@@ -187,8 +199,13 @@ int main (int argc, char *argv[])
     // now the input is the same, choose a random pivot
     // ^^actually we can't, dgal implementations require middle element
     //   as pivot
-    srand( time(NULL) );
-    long int pivot_index = /*(nelem-1) / 2 */rand() % nelem;
+    long int pivot_index;
+    if ( argc >= 3 )
+        pivot_index = atol(argv[2]);
+    else {
+        srand( time(NULL) );
+        pivot_index = /*(nelem-1) / 2 */rand() % nelem;
+    }
     weight_t pivot = array_d[pivot_index].weight;
     _TYPE_V pivot_elem = array_d[pivot_index];
     printf("pivot index = %ld, pivot = %lf\n", pivot_index, pivot);
@@ -260,20 +277,24 @@ int main (int argc, char *argv[])
     //memcpy(copy, array_d, nelem*sizeof(_TYPE_V));
 
     // dgal concurrent inplace partition
+#ifdef PROFILE
     timer_clear(&tim);
     timer_start(&tim);
+#endif
 
     #pragma omp parallel
     {
         ret = quicksort_partition_concurrent_inplace(pivot_elem, array_d/*copy*/, 0, nelem-1, NULL);
     }
 
+#ifdef PROFILE
     timer_stop(&tim);
     hz = timer_read_hz();
     fprintf(stderr, "partition_conc inplc   cycles:%lf seconds:%lf freq:%lf\n", 
                     timer_total(&tim),
                     timer_total(&tim) / hz,
                     hz );
+#endif
 
     printf("%ld (or %lf%%) elements smaller than or equal to pivot %lf\n", ret, (double)ret/nelem*100, pivot);
     assert(array_is_partitioned_ignore_equal(array_d/*copy*/, nelem, pivot_elem));

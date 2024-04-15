@@ -4,6 +4,12 @@
 
 #include "quicksort.h"
 
+#ifdef PROFILE
+#include "machine/tsc_x86_64.h"
+tsctimer_t tim;
+double hz;
+#endif
+
 #define error(fmt, ...)                         \
 do {                                            \
 	fprintf(stderr, fmt, ##__VA_ARGS__);    \
@@ -487,6 +493,22 @@ partition_concurrent_inplace_base(_TYPE_V pivot, _TYPE_V * A, long i_start, long
         //printf("%s omp_get_num_threads() = %d\n", __FUNCTION__, num_threads);
 	int tnum = omp_get_thread_num();
 
+#ifdef PROFILE
+	#pragma omp single
+	{
+    timer_clear(&tim);
+    timer_start(&tim);
+    timer_stop(&tim);
+    hz = timer_read_hz();
+    fprintf(stdout, "  partit start! t#%d cycles:%18.2lf seconds:%10lf freq:%lf\n", 
+                    tnum,
+                    timer_total(&tim),
+                    timer_total(&tim) / hz,
+                    hz );
+    timer_start(&tim);
+        }
+#endif
+
         //printf("i_start=%ld, i_end=%ld\n", i_start, i_end);
 	static int num_threads_prev = 0;
 	static long g_l;
@@ -552,6 +574,16 @@ partition_concurrent_inplace_base(_TYPE_V pivot, _TYPE_V * A, long i_start, long
 
 	#pragma omp single nowait
 	{
+#ifdef PROFILE
+    timer_stop(&tim);
+    hz = timer_read_hz();
+    fprintf(stdout, "  partition ph1 t#%d cycles:%18.2lf seconds:%10lf freq:%lf\n", 
+                    tnum,
+                    timer_total(&tim),
+                    timer_total(&tim) / hz,
+                    hz );
+    timer_start(&tim);
+#endif
 		g_l += i_start;
 		g_h += g_l;
 	}
@@ -661,7 +693,20 @@ partition_concurrent_inplace_base(_TYPE_V pivot, _TYPE_V * A, long i_start, long
 	}
 	partition_concurrent_out:;
 
-	#pragma omp barrier
+	#pragma omp single
+	{
+#ifdef PROFILE
+    timer_stop(&tim);
+    hz = timer_read_hz();
+    fprintf(stdout, "  partition ph2 t#%d cycles:%18.2lf seconds:%10lf freq:%lf\n", 
+                    tnum,
+                    timer_total(&tim),
+                    timer_total(&tim) / hz,
+                    hz );
+#endif
+        }
+
+	//#pragma omp barrier
 
 	return g_l;
 }

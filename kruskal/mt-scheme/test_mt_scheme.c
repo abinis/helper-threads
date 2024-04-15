@@ -296,7 +296,7 @@ int main(int argc, char *argv[])
 
     assert( main_region+ht_region == el->nedges );
 
-    // temprarily give all available cpus to main thr 
+    // temporarily give all available cpus to main thr 
     for ( cpu_id = 1; cpu_id < nthr; cpu_id++ )
         CPU_SET(cpu_id,&cpusets[0]);
     sched_setaffinity(getpid(), sizeof(cpusets[0]), &cpusets[0]);

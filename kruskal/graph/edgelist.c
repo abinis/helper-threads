@@ -704,6 +704,8 @@ edgelist_t * edgelist_load(const char *dumpfile)
     return el;
 }
 
+//char *method_chosen_str = NULL;
+
 edgelist_t * edgelist_choose_input_method(const char *filename,
                                           int is_undirected,
                                           int is_vertex_numbering_zero_based,
@@ -732,6 +734,20 @@ edgelist_t * edgelist_choose_input_method(const char *filename,
 
     printf("extension=%s\n", extension);
 
+    //method_chosen_str = calloc(5,sizeof(char));
+    //if ( !method_chosen_str ) {
+    //    fprintf(stderr, "%s: Allocation error\n", __FUNCTION__);
+    //    exit(EXIT_FAILURE);
+    //}
+    //strncpy(method_chosen_str,"read",strlen("read"));
+    //if ( strcmp(extension,"dump") == 0 ) {
+    //    strncpy(method_chosen_str,"load",strlen("read"));
+    //    printf("method_chosen=%s\n", method_chosen_str);
+    //    el = edgelist_load(filename);
+    //} else {
+    //    printf("method_chosen=%s\n", method_chosen_str);
+    //    el = edgelist_read(filename,0,0);
+    //}
     *method_chosen = calloc(5,sizeof(char));
     if ( !(*method_chosen) ) {
         fprintf(stderr, "%s: Allocation error\n", __FUNCTION__);
@@ -748,6 +764,8 @@ edgelist_t * edgelist_choose_input_method(const char *filename,
     }
 
     free(fullname);
+
+    //method_chosen = &method_chosen_str;
 
     return el;
 }
@@ -1042,6 +1060,8 @@ edgelist_t* edgelist_single_read(const char *filename,
  */ 
 void edgelist_destroy(edgelist_t *el)
 {
+    //if ( method_chosen_str != NULL )
+    //    free(method_chosen_str);
     free(el->edge_array);
     free(el);
 }
