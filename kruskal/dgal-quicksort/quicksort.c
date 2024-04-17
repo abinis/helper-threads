@@ -500,7 +500,7 @@ partition_concurrent_inplace_base(_TYPE_V pivot, _TYPE_V * A, long i_start, long
     timer_start(&tim);
     timer_stop(&tim);
     hz = timer_read_hz();
-    fprintf(stdout, "  partit start! t#%d cycles:%18.2lf seconds:%10lf freq:%lf\n", 
+    fprintf(stdout, "  partit   start! t#%2d cycles:%18.2lf seconds:%10lf freq:%lf\n", 
                     tnum,
                     timer_total(&tim),
                     timer_total(&tim) / hz,
@@ -564,6 +564,20 @@ partition_concurrent_inplace_base(_TYPE_V pivot, _TYPE_V * A, long i_start, long
 	if (m > i_e)
 		error("test");
 
+	#pragma omp single
+	{
+#ifdef PROFILE
+    timer_stop(&tim);
+    hz = timer_read_hz();
+    fprintf(stdout, "  partit   phase1 t#%2d cycles:%18.2lf seconds:%10lf freq:%lf\n", 
+                    tnum,
+                    timer_total(&tim),
+                    timer_total(&tim) / hz,
+                    hz );
+    timer_start(&tim);
+#endif
+        }
+
 	__atomic_fetch_add(&g_l, m-i_s, __ATOMIC_RELAXED);
 	__atomic_fetch_add(&g_h, i_e-m, __ATOMIC_RELAXED);
 	t_s[tnum] = i_s;
@@ -577,7 +591,7 @@ partition_concurrent_inplace_base(_TYPE_V pivot, _TYPE_V * A, long i_start, long
 #ifdef PROFILE
     timer_stop(&tim);
     hz = timer_read_hz();
-    fprintf(stdout, "  partition ph1 t#%d cycles:%18.2lf seconds:%10lf freq:%lf\n", 
+    fprintf(stdout, "  partit  atomics t#%2d cycles:%18.2lf seconds:%10lf freq:%lf\n", 
                     tnum,
                     timer_total(&tim),
                     timer_total(&tim) / hz,
@@ -698,7 +712,7 @@ partition_concurrent_inplace_base(_TYPE_V pivot, _TYPE_V * A, long i_start, long
 #ifdef PROFILE
     timer_stop(&tim);
     hz = timer_read_hz();
-    fprintf(stdout, "  partition ph2 t#%d cycles:%18.2lf seconds:%10lf freq:%lf\n", 
+    fprintf(stdout, "  partit   phase2 t#%2d cycles:%18.2lf seconds:%10lf freq:%lf\n", 
                     tnum,
                     timer_total(&tim),
                     timer_total(&tim) / hz,

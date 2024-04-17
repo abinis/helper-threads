@@ -450,33 +450,33 @@ cpp_sort_edge_arr(edge_t * t, unsigned int as, int num_threads) {
 //	v.assign(tmp_edge_arr, tmp_edge_arr + el->nedges);
 //	std::sort (v.begin(), v.end(), cpp_edge_compare);
 
-//TODO considre moving printing of messages to the per case relevant executable
+//TODO consider moving printing of messages to the per case relevant executable
 #ifdef USE_BOOST_PSORT
-        //printf("using boost library parallel_stable_sort with %d threads!\n", num_threads);
+        printf("using boost library parallel_stable_sort with %d threads!\n", num_threads);
 	//boost::sort::parallel_stable_sort(v.begin(), v.end(), cpp_edge_compare, num_threads);
 	boost::sort::parallel_stable_sort(t, t+as, cpp_edge_compare, num_threads);
 #elif defined USE_BOOST_SAMSORT
-        //printf("using boost library sample_sort with %d threads!\n", num_threads);
+        printf("using boost library sample_sort with %d threads!\n", num_threads);
 	//boost::sort::sample_sort(v.begin(), v.end(), cpp_edge_compare, num_threads);
 	boost::sort::sample_sort(t, t+as, cpp_edge_compare, num_threads);
 #elif defined USE_BOOST_BLISORT
-        //printf("using boost library block_indirect_sort with %d threads!\n", num_threads);
+        printf("using boost library block_indirect_sort with %d threads!\n", num_threads);
 	//boost::sort::block_indirect_sort(v.begin(), v.end(), cpp_edge_compare, num_threads);
 	boost::sort::block_indirect_sort(t, t+as, cpp_edge_compare, num_threads);
 #else
 #if __cplusplus >= 201703L 
         if ( num_threads > 1 ) {
             // note: you should actually specify, e.g. via 'taskset -c', how many threads to use!
-            //printf("using std library par (post C++17) sort!\n");
+            printf("using std library par (post C++17) sort!\n");
 	    //sort(std::execution::par_unseq, v.begin(), v.end(), cpp_edge_compare);
 	    sort(std::execution::par_unseq, t, t+as, cpp_edge_compare);
         } else {
-            //printf("using std library serial sort!\n");
+            printf("using std library serial sort!\n");
 	    //sort(v.begin(), v.end(), cpp_edge_compare);
 	    sort(t, t+as, cpp_edge_compare);
         }
 #else
-        //printf("using std library serial sort!\n");
+        printf("using std library serial sort!\n");
 	//sort(v.begin(), v.end(), cpp_edge_compare);
 	sort(t, t+as, cpp_edge_compare);
 #endif

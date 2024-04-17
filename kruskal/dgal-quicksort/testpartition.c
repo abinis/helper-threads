@@ -290,7 +290,7 @@ int main (int argc, char *argv[])
 #ifdef PROFILE
     timer_stop(&tim);
     hz = timer_read_hz();
-    fprintf(stderr, "partition_conc inplc   cycles:%lf seconds:%lf freq:%lf\n", 
+    fprintf(stderr, "partition_conc inplc   cycles:%18.2lf seconds:%10lf freq:%lf\n", 
                     timer_total(&tim),
                     timer_total(&tim) / hz,
                     hz );

@@ -117,7 +117,8 @@ void compare_serial_mt_accesses(unsigned int nedges,
     fprintf(stdout, "#accesses, serial vs mt: %u %u\n", s_jumps, mt_jumps);
 }
 
-void * edge_membership_make_copy(unsigned int len, size_t sz, void *arr)
+// Actually, make_copy of any (void*) array :P
+void * edge_membership_make_copy(unsigned long int len, size_t sz, void *arr)
 {
     void *ret = calloc(len, sz);
     if (!ret) {
@@ -336,13 +337,17 @@ int main(int argc, char **argv)
     //hz = timer_read_hz();
     //fprintf(stdout, "edgelist_create      cycles:%lf  freq:%.0lf seconds:%lf\n", 
     //                timer_total(&tim), hz, timer_total(&tim)/hz);
+
+    edge_t * unsorted_edges = (edge_t*)edge_membership_make_copy(el->nedges,
+                                                                sizeof(edge_t),
+                                                                el->edge_array);
  
 #ifdef PROFILE
     timer_clear(&tim);
     timer_start(&tim);
 #endif
     // Sort edge list
-    kruskal_sort_edges(el,1); 
+    kruskal_sort_edges(el,/*maxthreads*/1); 
 #ifdef PROFILE
     timer_stop(&tim);
     hz = timer_read_hz();
@@ -398,6 +403,8 @@ int main(int argc, char **argv)
 
     fprintf(stdout, "...done!\n");
 
+    free(el->edge_array);
+    el->edge_array = unsorted_edges;
 
     cycles_helper = calloc(maxthreads, sizeof(unsigned int));
 
@@ -408,6 +415,33 @@ int main(int argc, char **argv)
     for ( iter = 0; iter < iterations; iter++ ) {
         // Run MT algorithm for different thread numbers
         for ( nthreads = 1; nthreads <= maxthreads; nthreads++ ) {
+            // First, sort edges using all availabe threads :)
+            // make an unsorted copy of the edge array...
+            edge_t * edge_array_copy = (edge_t*)edge_membership_make_copy(el->nedges,
+                                                               sizeof(edge_t),
+                                                               el->edge_array);
+            // temporarily set the calling thread to run on all available CPUs...
+            cpu_set_t cpumask;
+            CPU_ZERO(&cpumask);
+            int cpunum;
+            for ( cpunum = 0; cpunum < nthreads; cpunum++ )
+                CPU_OR(&cpumask,&cpumask,&cpusets[cpunum]);
+            sched_setaffinity(getpid(), sizeof(cpusets[0]), &cpumask);
+            // sort edges...
+#ifdef PROFILE
+    timer_clear(&tim);
+    timer_start(&tim);
+#endif
+            kruskal_sort_edges(el,nthreads);
+#ifdef PROFILE
+    timer_stop(&tim);
+    hz = timer_read_hz();
+    fprintf(stdout, "kruskal_sort_edges w/%2d thr   cycles:%lu  freq:%.0lf seconds:%lf\n", 
+                    nthreads, (uint64_t)timer_total(&tim), hz, timer_total(&tim)/hz);
+#endif
+            // finally, revert to the initial cpu set!
+            sched_setaffinity(getpid(), sizeof(cpusets[0]), &cpusets[0]);
+
             // Run MT algorithm for first few edges
             unsigned int batch_size = el->nedges / numdatapoints;
             // distribute remainder across batches so we end up with exactly
@@ -664,6 +698,8 @@ int main(int argc, char **argv)
             }
 
             //mt_stats_partial_progress(mt_statsp, iter, nthreads, el->nedges, msf_edge_count_check);
+            free(el->edge_array);
+            el->edge_array = edge_array_copy;
         }
     }
 

@@ -15,10 +15,20 @@ CPPSTD = c++11
 TBB = 
 #ifeq ($(and $(USE_BOOST_PSORT),$(USE_BOOST_SAMSORT),$(USE_BOOST_BLISORT)),)
 #ifeq ($(CMD_MACROS),)
+boost = $(shell echo $(CMD_MACROS)|grep -o 'DUSE_BOOST_PSORT\|DUSE_BOOST_SAMSORT\|DUSE_BOOST_BLISORT' )
+no_boost_check = $(shell [ -z $(boost) ] && echo true )
+ifeq ($(no_boost_check),true)
+#ifndef $(boost)
 ver = $(shell echo $(CPPSTD)|sed -n 's/c++\([0-9]*\)/\1/p')
 res = $(shell [ $(ver) -ge 17 ] && echo true )
 ifeq ($(res),true)
 TBB = -ltbb
+$(info c++ std >= 17, using parallel (TBB) sort)
+else
+$(info c++ std < 17, using standard library (serial) sort)
+endif
+else
+$(info using c++ boost library sort)
 endif
 #endif
 
@@ -96,10 +106,10 @@ test_mt_kruskal_bitmask : kruskal_array.o mt_kruskal_bitmask.o test_mt_kruskal_b
 					  adjlist.o union_find_array.o util.o processor_map.o \
 			  		  -o test_mt_kruskal_bitmask -L$(LIBRARY_DIR) $(LIBS)
 
-test_mt_kruskal_cas_comp : kruskal_array.o mt_kruskal_cas_comp.o test_mt_kruskal_cas_comp.o edgelist.o adjlist.o union_find_array.o util.o processor_map.o heap.o
+test_mt_kruskal_cas_comp : kruskal_array.o mt_kruskal_cas_comp.o test_mt_kruskal_cas_comp.o edgelist.o adjlist.o union_find_array.o util.o processor_map.o heap.o cpp_psort.o
 	$(CC) $(CFLAGS)   kruskal_array.o mt_kruskal_cas_comp.o test_mt_kruskal_cas_comp.o edgelist.o \
-					  adjlist.o union_find_array.o util.o processor_map.o heap.o \
-			  		  -o test_mt_kruskal_cas_comp -L$(LIBRARY_DIR) $(LIBS)
+					  adjlist.o union_find_array.o util.o processor_map.o heap.o cpp_psort.o \
+			  		  -o test_mt_kruskal_cas_comp -std=$(CPPSTD) -lstdc++ $(TBB) -L$(LIBRARY_DIR) $(LIBS)
 
 test_mt_kruskal_cas_begin : kruskal_array.o mt_kruskal_cas_begin.o test_mt_kruskal_cas_partial_run.o edgelist.o adjlist.o union_find_array.o util.o processor_map.o
 	$(CC) $(CFLAGS)   kruskal_array.o mt_kruskal_cas_begin.o test_mt_kruskal_cas_partial_run.o edgelist.o \
@@ -169,7 +179,7 @@ cpp_psort.o : ../cpp_functions/cpp_psort.cpp
 	$(CPPC) $(CFLAGS) -I$(BOOST_DIR) -I$(INCLUDE_DIR) $(CMD_MACROS) -c ../cpp_functions/cpp_psort.cpp -std=$(CPPSTD)
 
 %.o : %.c 
-	$(CC) $(CFLAGS)  -c $<
+	$(CC) $(CFLAGS) $(CMD_MACROS) -c $<
 
 
 clean :
